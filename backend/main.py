@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, AsyncGenerator
 from datetime import datetime
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -10,16 +10,22 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 from pydantic import BaseModel
 from dotenv import load_dotenv
+import google.generativeai as genai
 
 # Load environment variables
 load_dotenv()
 
+# Configure Gemini
+gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("API_KEY")
+if gemini_api_key:
+    genai.configure(api_key=gemini_api_key)
+
 # Import provider system
 try:
-    from providers import AIProviderManager
+    from .providers import AIProviderManager
 except ImportError:
     logger = logging.getLogger(__name__)
-    logger.error("providers module not found. Please ensure providers.py is in the backend directory.")
+    logger.error("providers module not found. Please ensure providers.py is in the backend directory and use correct PYTHONPATH.")
     raise
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -184,6 +190,46 @@ async def generate_text_response(
         logger.error(f"Text generation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Text generation failed: {str(e)}")
 
+async def stream_chat_response(
+    messages: List[MessageRequest],
+    context: str,
+    use_grounding: bool = False,
+    use_memory: bool = False,
+    target_language: str = "English"
+) -> AsyncGenerator[str, None]:
+    """Stream chat response using Gemini"""
+    try:
+        # Prepare system instruction
+        long_term_context = ""
+        if use_memory and messages:
+            long_term_context = search_memory(messages[-1].content)
+        
+        system_instruction = f"""Persona: Expert Multimodal AI assistant with Long-term Memory. 
+        Language: {target_language}. 
+        Capabilities: You analyze text, images, videos, audio.
+        Semantic Context from Long-term Memory: {long_term_context or "No past relevant memories found."}
+        Current Local Context: {context or "General assistance."}"""
+        
+        # Get last user message
+        last_msg = messages[-1].content if messages else ""
+        
+        # Build request for Gemini
+        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction)
+        
+        # Stream the response
+        response = model.generate_content(last_msg, stream=True)
+        
+        for chunk in response:
+            if chunk.text:
+                yield f"data: {json.dumps({'text': chunk.text})}\n\n"
+        
+        # Signal completion
+        yield "data: {\"done\": true}\n\n"
+        
+    except Exception as e:
+        logger.error(f"Stream chat error: {str(e)}")
+        yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+
 async def generate_image(prompt: str, aspect_ratio: str = "1:1", provider_name: Optional[str] = None) -> str:
     """Generate image using available provider"""
     try:
@@ -197,7 +243,7 @@ async def generate_image(prompt: str, aspect_ratio: str = "1:1", provider_name: 
             prompt=prompt,
             size="512x512"
         )
-        
+        return image_data
         
     except Exception as e:
         logger.error(f"Image generation error: {str(e)}")
@@ -343,6 +389,24 @@ async def chat(request: ChatRequest):
         logger.error(f"Chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
 
+@app.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """Streaming chat endpoint"""
+    try:
+        return StreamingResponse(
+            stream_chat_response(
+                messages=request.messages,
+                context=request.context or "",
+                use_grounding=request.use_grounding,
+                use_memory=request.use_memory,
+                target_language=request.target_language
+            ),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        logger.error(f"Chat stream error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Chat stream failed: {str(e)}")
+
 @app.post("/synthesize")
 async def synthesize(request: SynthesisRequest):
     """Generate synthesis/summary of content"""
@@ -480,10 +544,12 @@ async def clear_chat_history():
 async def detect_intent(request: MessageRequest):
     """Detect user intent (TEXT, IMAGE, VIDEO)"""
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        provider = provider_manager.get_text_provider()
+        if not provider:
+            logger.warning("No provider available for intent detection, defaulting to TEXT")
+            return JSONResponse({"intent": "TEXT", "prompt": request.content})
         
-        response = model.generate_content(
-            f"""Identify intent:
+        intent_prompt = f"""Identify intent:
             - Return 'IMAGE' if the user wants to create an image.
             - Return 'VIDEO' if the user wants to create a video.
             - Return 'AUDIO' if the user wants audio generation/processing.
@@ -491,11 +557,14 @@ async def detect_intent(request: MessageRequest):
             
             Query: "{request.content}"
             
-            Respond with only the intent type.""",
-            generation_config=genai.types.GenerationConfig(temperature=0)
+            Respond with only the intent type."""
+        
+        response = provider.generate_text(
+            prompt=intent_prompt,
+            temperature=0
         )
         
-        intent = response.text.strip().upper()
+        intent = response.strip().upper()
         valid_intents = ["TEXT", "IMAGE", "VIDEO", "AUDIO"]
         intent = intent if intent in valid_intents else "TEXT"
         
@@ -605,3 +674,4 @@ if __name__ == "__main__":
         reload=os.getenv("ENV", "production") != "production",
         log_level="info"
     )
+
