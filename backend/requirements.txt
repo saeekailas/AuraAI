@@ -15,7 +15,7 @@ psycopg2-binary==2.9.9
 
 # Caching & Memory
 redis==5.0.1
-pinecone-client==3.1.0
+pinecone-client==4.1.2
 
 # Data Validation
 pydantic==2.5.3
