@@ -1,0 +1,94 @@
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: auraai-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://frontend:3000
+      - ENV=production
+      - HOST=0.0.0.0
+      - PORT=8000
+    depends_on:
+      - db
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - auraai-network
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: auraai-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://backend:8000
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - auraai-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: auraai-db
+    environment:
+      - POSTGRES_USER=${DB_USER:-auraai}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-auraai_secure_password_2024}
+      - POSTGRES_DB=${DB_NAME:-auraai_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-auraai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - auraai-network
+
+  # Optional: Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: auraai-redis
+    ports:
+      - "6379:6379"
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - auraai-network
+
+networks:
+  auraai-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
