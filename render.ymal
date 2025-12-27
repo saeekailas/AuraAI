@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: auraai-backend
+    env: docker
+    branch: main
+    dockerfilePath: backend/Dockerfile
+    plan: free
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: ENV
+        value: "production"
