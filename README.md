@@ -156,17 +156,4 @@
 
  Coding style:
  - Python: follow standard PEP8 and type hints where possible.
- - TypeScript: follow standard linting in `package.json` (if configured).
-
- ---
-
- ## License
-
- This project is provided under the MIT license. See `LICENSE` for details.
-
- ---
-
- If you want, I can also:
- - add a short `Getting Started` video or GIF to the README,
- - include a simple architecture diagram file and link it from the README,
- - or add provider-specific setup sections (OpenAI, Anthropic, Stability, ElevenLabs).
+ - TypeScript: follow standard linting in `package.json`
