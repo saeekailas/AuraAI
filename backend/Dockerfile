@@ -1,4 +1,4 @@
-## Build stage
+# Build stage
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
@@ -49,5 +49,5 @@ EXPOSE ${PORT}
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Run FastAPI application using the PORT env var
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
+# Run FastAPI application using the PORT env var (shell expands $PORT)
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port $PORT"]
