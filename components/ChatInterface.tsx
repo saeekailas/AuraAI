@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, Document, SystemLog, Asset, SupportedLanguage, Workspace, UserProfile } from '../types';
-import { geminiService } from '../services/geminiService'
+import { geminiService } from '../services/geminiService';
 import VoiceTerminal from './VoiceTerminal';
 import VisualGenerator from './VisualGenerator';
 import VideoGenerator from './VideoGenerator';
