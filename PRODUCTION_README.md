@@ -1,6 +1,6 @@
 # AuraAI
 
-AuraAI is an application for generating and managing text, images, videos, and audio content. It uses a React frontend and a FastAPI backend and can integrate with external AI providers
+AuraAI is an application for generating and managing text, images, videos, and audio content. It uses a React frontend and a FastAPI backend and can integrate with external AI providers.
 
 ## Features
 
