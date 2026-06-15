@@ -1,7 +1,6 @@
 # AuraAI Project - Build Summary
 
 This document summarizes the AuraAI build and configuration.
-
 ---
 
 ## Project Overview
