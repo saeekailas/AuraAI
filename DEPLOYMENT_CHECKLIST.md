@@ -7,7 +7,7 @@ Complete this checklist before deploying AuraAI to production.
 ### 1. Security Audit
 - [ ] All API keys are stored in `.env` (never in code)
 - [ ] `.env` is added to `.gitignore`
-- [ ] No secrets in git history: `git log --all --full-history --source --oneline | grep -i "key\|secret\|password"`
+- [ ] No secrets in git history: `git log --all --full-history --source --oneline | grep -i "key\|secret\|password*
 - [ ] HTTPS is enabled in production configuration
 - [ ] CORS origins are restricted to your domain
 - [ ] Database passwords are strong (minimum 16 characters)
