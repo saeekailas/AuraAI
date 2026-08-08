@@ -1,4 +1,4 @@
-# AuraAI Quick Reference
+# AuraAI Quick ReferencE
 
 ## Quick Start Commands
 
